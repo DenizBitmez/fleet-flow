@@ -5,12 +5,16 @@ spring:
   application:
     name: matching-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/fleet_db
+    url: jdbc:postgresql://localhost:5433/fleet_db
+
     username: admin
     password: password
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
   data:
     redis:
@@ -26,3 +30,10 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.orm.jpa: DEBUG
+    org.postgresql: TRACE

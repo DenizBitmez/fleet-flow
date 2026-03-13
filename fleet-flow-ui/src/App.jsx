@@ -21,34 +21,38 @@ function App() {
   const [connected, setConnected] = useState(false)
 
   useEffect(() => {
-    const socket = new SockJS('/ws-tracking')
-    const stompClient = Stomp.over(socket)
+    let stompClient = null;
+    const socket = new SockJS('/ws-tracking');
+    stompClient = Stomp.over(socket);
     
-    // Disable logging for cleaner console
-    stompClient.debug = () => {}
+    stompClient.debug = () => {};
 
-    stompClient.connect({}, (frame) => {
-      setConnected(true)
-      console.log('Connected: ' + frame)
+    stompClient.connect({}, 
+      (frame) => {
+        setConnected(true);
+        stompClient.subscribe('/topic/locations', (message) => {
+          const update = JSON.parse(message.body);
+          setCouriers(prev => ({ ...prev, [update.courierId]: update }));
+        });
 
-      stompClient.subscribe('/topic/locations', (message) => {
-        const update = JSON.parse(message.body)
-        setCouriers(prev => ({
-          ...prev,
-          [update.courierId]: update
-        }))
-      })
-
-      stompClient.subscribe('/topic/assignments', (message) => {
-        const assignment = JSON.parse(message.body)
-        setAssignments(prev => [assignment, ...prev].slice(0, 5))
-      })
-    })
+        stompClient.subscribe('/topic/assignments', (message) => {
+          const assignment = JSON.parse(message.body);
+          setAssignments(prev => [assignment, ...prev].slice(0, 5));
+        });
+      },
+      (error) => {
+        console.error('STOMP error:', error);
+        setConnected(false);
+      }
+    );
 
     return () => {
-      if (stompClient) stompClient.disconnect()
-    }
+      if (stompClient && stompClient.connected) {
+        stompClient.disconnect();
+      }
+    };
   }, [])
+
 
   const courierList = Object.values(couriers)
 

@@ -8,9 +8,11 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/ws-tracking': {
-        target: 'ws://localhost:8083',
-        ws: true
+        target: 'http://localhost:8083',
+        ws: true,
+        changeOrigin: true
       },
+
       '/courier': {
         target: 'http://localhost:8080'
       },
