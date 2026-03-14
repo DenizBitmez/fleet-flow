@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import SockJS from 'sockjs-client'
 import Stomp from 'stompjs'
-import { Truck, MapPin, Activity, ShieldCheck } from 'lucide-react'
+import { Truck, MapPin, Activity, ShieldCheck, ShoppingBag, Package, Bike, CheckCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import './App.css'
 
@@ -19,6 +19,7 @@ function App() {
   const [couriers, setCouriers] = useState({})
   const [assignments, setAssignments] = useState([])
   const [connected, setConnected] = useState(false)
+  const [activeOrder, setActiveOrder] = useState(null)
 
   useEffect(() => {
     // Fetch initial locations
@@ -32,6 +33,24 @@ function App() {
         setCouriers(initialCouriers)
       })
       .catch(err => console.error('Error fetching initial locations:', err))
+
+    // Fetch initial assignments (orders)
+    fetch('/matching/orders')
+      .then(res => res.json())
+      .then(data => {
+        // Map backend Order entity to assignment format if needed
+        const initialAssignments = data.map(order => ({
+          orderId: order.id.toString(),
+          courierId: order.courierId,
+          customerId: order.customerId,
+          status: order.status
+        }))
+        setAssignments(initialAssignments)
+        if (initialAssignments.length > 0) {
+          setActiveOrder(initialAssignments[0])
+        }
+      })
+      .catch(err => console.error('Error fetching initial orders:', err))
   }, [])
 
   useEffect(() => {
@@ -62,7 +81,20 @@ function App() {
             setAssignments(prev => {
               const exists = prev.some(a => a.orderId === assignment.orderId);
               if (exists) return prev;
-              return [assignment, ...prev].slice(0, 5);
+              const newAssignments = [assignment, ...prev].slice(0, 5);
+              // Set the latest assignment as active if no active order exists
+              if (!activeOrder) setActiveOrder(assignment);
+              return newAssignments;
+            });
+          });
+
+          stompClient.subscribe('/topic/order-status', (message) => {
+            const update = JSON.parse(message.body);
+            setActiveOrder(prev => {
+              if (prev && prev.orderId === update.orderId) {
+                return { ...prev, status: update.status };
+              }
+              return prev;
             });
           });
         },
@@ -164,7 +196,8 @@ function App() {
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="assignment-item"
+                    className={`assignment-item ${activeOrder?.orderId === asgn.orderId ? 'active' : ''}`}
+                    onClick={() => setActiveOrder(asgn)}
                   >
 
                     <div className="asgn-info">
@@ -179,6 +212,74 @@ function App() {
           </div>
         </motion.div>
       </div>
+
+      {/* Getir Style Tracking Card */}
+      <AnimatePresence>
+        {activeOrder && (
+          <motion.div 
+            initial={{ y: 150, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 150, opacity: 0 }}
+            className="glass tracking-card"
+          >
+            <div className="tracking-header">
+              <div className="courier-info-mini">
+                <div className="courier-avatar">
+                  <Truck size={20} />
+                </div>
+                <div>
+                  <span className="label">Courier Assigned</span>
+                  <span className="value">Courier {activeOrder.courierId.substring(0, 8)}</span>
+                </div>
+              </div>
+              <div className="status-badge-main">
+                {activeOrder.status}
+              </div>
+            </div>
+
+            <div className="progress-container">
+              <div className="progress-line">
+                <div 
+                  className="progress-line-fill" 
+                  style={{ 
+                    width: activeOrder.status === 'MATCHED' ? '0%' : 
+                           activeOrder.status === 'PREPARING' ? '33%' : 
+                           activeOrder.status === 'ON_THE_WAY' ? '66%' : '100%' 
+                  }}
+                ></div>
+              </div>
+              
+              <div className="progress-step">
+                <div className={`step-dot ${['MATCHED', 'PREPARING', 'ON_THE_WAY', 'DELIVERED'].includes(activeOrder.status) ? 'completed' : ''} ${activeOrder.status === 'MATCHED' ? 'active' : ''}`}>
+                  <ShoppingBag size={14} />
+                </div>
+                <span className={`step-label ${activeOrder.status === 'MATCHED' ? 'active' : ''}`}>Received</span>
+              </div>
+
+              <div className="progress-step">
+                <div className={`step-dot ${['PREPARING', 'ON_THE_WAY', 'DELIVERED'].includes(activeOrder.status) ? 'completed' : ''} ${activeOrder.status === 'PREPARING' ? 'active' : ''}`}>
+                  <Package size={14} />
+                </div>
+                <span className={`step-label ${activeOrder.status === 'PREPARING' ? 'active' : ''}`}>Preparing</span>
+              </div>
+
+              <div className="progress-step">
+                <div className={`step-dot ${['ON_THE_WAY', 'DELIVERED'].includes(activeOrder.status) ? 'completed' : ''} ${activeOrder.status === 'ON_THE_WAY' ? 'active' : ''}`}>
+                  <Bike size={14} />
+                </div>
+                <span className={`step-label ${activeOrder.status === 'ON_THE_WAY' ? 'active' : ''}`}>On Way</span>
+              </div>
+
+              <div className="progress-step">
+                <div className={`step-dot ${activeOrder.status === 'DELIVERED' ? 'completed' : ''} ${activeOrder.status === 'DELIVERED' ? 'active' : ''}`}>
+                  <CheckCircle size={14} />
+                </div>
+                <span className={`step-label ${activeOrder.status === 'DELIVERED' ? 'active' : ''}`}>Delivered</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

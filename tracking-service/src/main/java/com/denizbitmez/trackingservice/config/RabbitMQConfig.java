@@ -15,6 +15,7 @@ public class RabbitMQConfig {
     public static final String EXCHANGE = "fleet.exchange";
     public static final String ASSIGNED_QUEUE = "courier.assigned.queue";
     public static final String LOCATION_QUEUE = "courier.location.queue";
+    public static final String STATUS_QUEUE = "order.status.queue";
 
     @Bean
     public Queue assignedQueue() {
@@ -24,6 +25,11 @@ public class RabbitMQConfig {
     @Bean
     public Queue locationQueue() {
         return new Queue(LOCATION_QUEUE);
+    }
+
+    @Bean
+    public Queue statusQueue() {
+        return new Queue(STATUS_QUEUE);
     }
 
     @Bean
@@ -39,6 +45,11 @@ public class RabbitMQConfig {
     @Bean
     public Binding locationBinding(Queue locationQueue, DirectExchange exchange) {
         return BindingBuilder.bind(locationQueue).to(exchange).with("courier.location");
+    }
+
+    @Bean
+    public Binding statusBinding(Queue statusQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(statusQueue).to(exchange).with("order.status");
     }
 
     @Bean

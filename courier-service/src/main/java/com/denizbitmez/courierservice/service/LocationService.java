@@ -51,7 +51,8 @@ public class LocationService {
         log.info("Fetching all courier locations from Redis");
         GeoResults<RedisGeoCommands.GeoLocation<String>> results = redisTemplate.opsForGeo().radius(
                 REDIS_KEY,
-                new Circle(new Point(0, 0), new Distance(20000, Metrics.KILOMETERS))
+                new Circle(new Point(0, 0), new Distance(20000, Metrics.KILOMETERS)),
+                RedisGeoCommands.GeoRadiusCommandArgs.newGeoRadiusArgs().includeCoordinates()
         );
 
         List<LocationUpdateDTO> locations = new ArrayList<>();

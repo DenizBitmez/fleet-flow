@@ -2,6 +2,7 @@ package com.denizbitmez.matchingservice.service;
 
 import com.denizbitmez.common.dto.OrderRequestDTO;
 import com.denizbitmez.common.event.CourierAssignedEvent;
+import com.denizbitmez.common.event.OrderStatusUpdatedEvent;
 import com.denizbitmez.matchingservice.config.RabbitMQConfig;
 import com.denizbitmez.matchingservice.entity.Order;
 import com.denizbitmez.matchingservice.repository.OrderRepository;
@@ -10,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.geo.Circle;
 import org.springframework.data.geo.Distance;
-import org.springframework.data.geo.GeoResult;
 import org.springframework.data.geo.GeoResults;
 import org.springframework.data.geo.Point;
 import org.springframework.data.redis.connection.RedisGeoCommands;
@@ -26,9 +26,9 @@ import java.util.List;
 @Slf4j
 public class MatchingService {
 
-    private final OrderRepository orderRepository;
     private final StringRedisTemplate redisTemplate;
     private final RabbitTemplate rabbitTemplate;
+    private final OrderRepository orderRepository; // Fixed order
 
     private static final String REDIS_KEY = "courier:locations";
     private static final double SEARCH_RADIUS_KM = 5.0;
@@ -69,6 +69,31 @@ public class MatchingService {
         }
 
         return order;
+    }
+
+    @Transactional
+    public Order updateOrderStatus(Long orderId, String status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+        
+        order.setStatus(status);
+        order = orderRepository.save(order);
+
+        // Publish status update event
+        OrderStatusUpdatedEvent event = OrderStatusUpdatedEvent.builder()
+                .orderId(orderId.toString())
+                .status(status)
+                .timestamp(System.currentTimeMillis())
+                .build();
+
+        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, "order.status", event);
+        log.info("Order {} status updated to {}", orderId, status);
+        
+        return order;
+    }
+
+    public List<Order> getRecentOrders() {
+        return orderRepository.findTop10ByOrderByIdDesc();
     }
 
     private String findNearestCourier(double lon, double lat) {

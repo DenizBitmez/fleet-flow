@@ -1,13 +1,12 @@
 # Fleet Flow | Real-Time Fleet Management System
 
-![Banner](https://img.shields.io/badge/Status-Completed-success?style=for-the-badge&logo=spring)
 ![Java](https://img.shields.io/badge/Java-21-orange?style=for-the-badge&logo=openjdk)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2.3-green?style=for-the-badge&logo=springboot)
 ![React](https://img.shields.io/badge/React-18.x-blue?style=for-the-badge&logo=react)
 
 **Fleet Flow** is a high-performance, real-time logistics and courier tracking system. Designed to simulate the architecture used by giants like Uber, DoorDash, and Getir, it handles high-frequency GPS data streams and provides real-time matching between customers and couriers.
 
-## 🏗 Architecture Ovenview
+## Architecture Ovenview
 
 ```mermaid
 graph TD
@@ -29,7 +28,7 @@ graph TD
     Tracking -->|WebSockets| UserMap[Live Tracking Map]
 ```
 
-## 🚀 Key Features
+## Key Features
 
 - **High-Frequency Ingestion**: Built to handle 1000+ couriers sending GPS data every 3 seconds.
 - **Geospatial Processing**: Uses Redis `GEOADD` and `GEORADIUS` for sub-millisecond proximity searches.
@@ -37,7 +36,7 @@ graph TD
 - **Real-Time Visualization**: React dashboard with Leaflet.js map, updating courier positions via WebSockets (STOMP).
 - **Service Discovery**: Netflix Eureka manages microservice lifecycle and registration.
 
-## 🛠 Tech Stack
+## Tech Stack
 
 - **Backend**: Java 21, Spring Boot 3, Spring Cloud Gateway, Eureka.
 - **Messaging**: RabbitMQ.
@@ -45,7 +44,7 @@ graph TD
 - **Frontend**: React, Vite, Leaflet.js, Framer Motion, Lucide.
 - **DevOps**: Docker & Docker Compose.
 
-## ⚙️ How to Run
+## How to Run
 
 ### 1. Infrastructure
 Spin up the standard required infrastructure:
@@ -73,7 +72,7 @@ Run the courier simulator to see the map in action:
 python scripts/simulate_couriers.py
 ```
 
-## 📊 Performance & Scalability
+## Performance & Scalability
 - **Latency**: Matching engine returns nearby couriers in <100ms.
 - **Resilience**: RabbitMQ decouples ingestion from business logic.
 - **UX**: Premium dark-mode dashboard with smooth animations.
