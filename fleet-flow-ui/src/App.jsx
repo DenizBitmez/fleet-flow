@@ -21,6 +21,20 @@ function App() {
   const [connected, setConnected] = useState(false)
 
   useEffect(() => {
+    // Fetch initial locations
+    fetch('/courier/locations')
+      .then(res => res.json())
+      .then(data => {
+        const initialCouriers = {}
+        data.forEach(c => {
+          initialCouriers[c.courierId] = c
+        })
+        setCouriers(initialCouriers)
+      })
+      .catch(err => console.error('Error fetching initial locations:', err))
+  }, [])
+
+  useEffect(() => {
     let stompClient = null;
     let isMounted = true;
 

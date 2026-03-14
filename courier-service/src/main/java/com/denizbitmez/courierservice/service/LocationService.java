@@ -4,9 +4,17 @@ import com.denizbitmez.common.dto.LocationUpdateDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.geo.Circle;
+import org.springframework.data.geo.Distance;
+import org.springframework.data.geo.GeoResults;
+import org.springframework.data.geo.Metrics;
 import org.springframework.data.geo.Point;
+import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +45,28 @@ public class LocationService {
             log.error("Error updating location for courier {}: {}", locationUpdateDTO.getCourierId(), e.getMessage(), e);
             throw e;
         }
+    }
+
+    public List<LocationUpdateDTO> getAllLocations() {
+        log.info("Fetching all courier locations from Redis");
+        GeoResults<RedisGeoCommands.GeoLocation<String>> results = redisTemplate.opsForGeo().radius(
+                REDIS_KEY,
+                new Circle(new Point(0, 0), new Distance(20000, Metrics.KILOMETERS))
+        );
+
+        List<LocationUpdateDTO> locations = new ArrayList<>();
+        if (results != null) {
+            results.forEach(result -> {
+                RedisGeoCommands.GeoLocation<String> location = result.getContent();
+                locations.add(LocationUpdateDTO.builder()
+                        .courierId(location.getName())
+                        .longitude(location.getPoint().getX())
+                        .latitude(location.getPoint().getY())
+                        .timestamp(System.currentTimeMillis())
+                        .build());
+            });
+        }
+        return locations;
     }
 }
 
