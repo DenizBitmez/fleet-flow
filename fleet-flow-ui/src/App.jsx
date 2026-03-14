@@ -22,36 +22,57 @@ function App() {
 
   useEffect(() => {
     let stompClient = null;
-    const socket = new SockJS('/ws-tracking');
-    stompClient = Stomp.over(socket);
-    
-    stompClient.debug = () => {};
+    let isMounted = true;
 
-    stompClient.connect({}, 
-      (frame) => {
-        setConnected(true);
-        stompClient.subscribe('/topic/locations', (message) => {
-          const update = JSON.parse(message.body);
-          setCouriers(prev => ({ ...prev, [update.courierId]: update }));
-        });
+    const connectWebSocket = () => {
+      const socket = new SockJS('/ws-tracking');
+      stompClient = Stomp.over(socket);
+      
+      stompClient.debug = () => {};
 
-        stompClient.subscribe('/topic/assignments', (message) => {
-          const assignment = JSON.parse(message.body);
-          setAssignments(prev => [assignment, ...prev].slice(0, 5));
-        });
-      },
-      (error) => {
-        console.error('STOMP error:', error);
-        setConnected(false);
-      }
-    );
+      stompClient.connect({}, 
+        (frame) => {
+          if (!isMounted) {
+            stompClient.disconnect();
+            return;
+          }
+          
+          setConnected(true);
+          stompClient.subscribe('/topic/locations', (message) => {
+            const update = JSON.parse(message.body);
+            setCouriers(prev => ({ ...prev, [update.courierId]: update }));
+          });
+
+          stompClient.subscribe('/topic/assignments', (message) => {
+            const assignment = JSON.parse(message.body);
+            setAssignments(prev => {
+              const exists = prev.some(a => a.orderId === assignment.orderId);
+              if (exists) return prev;
+              return [assignment, ...prev].slice(0, 5);
+            });
+          });
+        },
+        (error) => {
+          console.error('STOMP error:', error);
+          if (isMounted) setConnected(false);
+        }
+      );
+    };
+
+    connectWebSocket();
 
     return () => {
-      if (stompClient && stompClient.connected) {
-        stompClient.disconnect();
+      isMounted = false;
+      if (stompClient) {
+        try {
+          stompClient.disconnect();
+        } catch (e) {
+          console.error('Disconnect error:', e);
+        }
       }
     };
   }, [])
+
 
 
   const courierList = Object.values(couriers)
@@ -125,12 +146,13 @@ function App() {
               ) : (
                 assignments.map((asgn, idx) => (
                   <motion.div 
-                    key={asgn.orderId + idx}
+                    key={asgn.orderId}
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="assignment-item"
                   >
+
                     <div className="asgn-info">
                       <span className="asgn-id">Order #{asgn.orderId}</span>
                       <span className="asgn-courier">Courier {asgn.courierId.substring(0, 5)}...</span>
