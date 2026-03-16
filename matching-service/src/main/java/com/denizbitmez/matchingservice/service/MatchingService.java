@@ -6,6 +6,7 @@ import com.denizbitmez.common.event.OrderStatusUpdatedEvent;
 import com.denizbitmez.matchingservice.config.RabbitMQConfig;
 import com.denizbitmez.matchingservice.entity.Order;
 import com.denizbitmez.matchingservice.repository.OrderRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -96,6 +97,7 @@ public class MatchingService {
         return orderRepository.findTop10ByOrderByIdDesc();
     }
 
+    @CircuitBreaker(name = "courierSearch", fallbackMethod = "courierSearchFallback")
     private String findNearestCourier(double lon, double lat) {
         GeoResults<RedisGeoCommands.GeoLocation<String>> results = redisTemplate.opsForGeo().radius(
                 REDIS_KEY,
@@ -106,6 +108,12 @@ public class MatchingService {
         if (results != null && !results.getContent().isEmpty()) {
             return results.getContent().get(0).getContent().getName();
         }
+        return null;
+    }
+
+    public String courierSearchFallback(double lon, double lat, Throwable t) {
+        log.error("Circuit breaker for courier search opened! Fallback triggered. Error: {}", t.getMessage());
+        // Fallback strategy: return null or a default courier if desired
         return null;
     }
 }

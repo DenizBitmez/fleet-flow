@@ -33,6 +33,30 @@ eureka:
     service-url:
       defaultZone: http://localhost:8761/eureka/
 
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+  endpoints:
+    web:
+      exposure:
+        include: health,actuator
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      courierSearch:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+
 logging:
   level:
     org.hibernate.SQL: DEBUG
