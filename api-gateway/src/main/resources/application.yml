@@ -11,10 +11,14 @@ spring:
           uri: lb://courier-service
           predicates:
             - Path=/courier/**
+          filters:
+            - AuthenticationFilter
         - id: matching-service
           uri: lb://matching-service
           predicates:
             - Path=/matching/**
+          filters:
+            - AuthenticationFilter
 
 eureka:
   instance:
