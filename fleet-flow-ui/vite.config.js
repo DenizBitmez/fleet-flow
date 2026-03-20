@@ -18,6 +18,9 @@ export default defineConfig({
       },
       '/matching': {
         target: 'http://localhost:8080'
+      },
+      '/auth': {
+        target: 'http://localhost:8080'
       }
     }
   }

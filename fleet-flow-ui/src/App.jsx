@@ -20,37 +20,86 @@ function App() {
   const [assignments, setAssignments] = useState([])
   const [connected, setConnected] = useState(false)
   const [activeOrder, setActiveOrder] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [token, setToken] = useState(null)
+
+  const createSampleOrder = () => {
+    if (!token) {
+      console.error("No token available yet")
+      return
+    }
+    setLoading(true)
+    const sampleOrder = {
+      customerId: "user-" + Math.floor(Math.random() * 1000),
+      latitude: 41.0082 + (Math.random() - 0.5) * 0.05,
+      longitude: 28.9784 + (Math.random() - 0.5) * 0.05,
+      deliveryLatitude: 41.0082 + (Math.random() - 0.5) * 0.05,
+      deliveryLongitude: 28.9784 + (Math.random() - 0.5) * 0.05,
+      pickupAddress: "Beşiktaş, İstanbul",
+      deliveryAddress: "Kadıköy, İstanbul"
+    }
+
+    fetch('/matching/order', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(sampleOrder)
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Order created:', data)
+      setLoading(false)
+    })
+    .catch(err => {
+      console.error('Error creating order:', err)
+      setLoading(false)
+    })
+  }
 
   useEffect(() => {
-    // Fetch initial locations
-    fetch('/courier/locations')
+    // 1. First authenticate with API Gateway to get JWT token
+    fetch('/auth/login?username=ui-dashboard')
       .then(res => res.json())
-      .then(data => {
-        const initialCouriers = {}
-        data.forEach(c => {
-          initialCouriers[c.courierId] = c
-        })
-        setCouriers(initialCouriers)
-      })
-      .catch(err => console.error('Error fetching initial locations:', err))
+      .then(authData => {
+        const jwt = authData.token
+        setToken(jwt)
 
-    // Fetch initial assignments (orders)
-    fetch('/matching/orders')
-      .then(res => res.json())
-      .then(data => {
-        // Map backend Order entity to assignment format if needed
-        const initialAssignments = data.map(order => ({
-          orderId: order.id.toString(),
-          courierId: order.courierId,
-          customerId: order.customerId,
-          status: order.status
-        }))
-        setAssignments(initialAssignments)
-        if (initialAssignments.length > 0) {
-          setActiveOrder(initialAssignments[0])
-        }
+        // 2. Fetch initial locations securely
+        fetch('/courier/locations', {
+          headers: { 'Authorization': `Bearer ${jwt}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            const initialCouriers = {}
+            data.forEach(c => {
+              initialCouriers[c.courierId] = c
+            })
+            setCouriers(initialCouriers)
+          })
+          .catch(err => console.error('Error fetching initial locations:', err))
+
+        // 3. Fetch initial assignments securely
+        fetch('/matching/orders', {
+          headers: { 'Authorization': `Bearer ${jwt}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            const initialAssignments = data.map(order => ({
+              orderId: order.id.toString(),
+              courierId: order.courierId,
+              customerId: order.customerId,
+              status: order.status
+            }))
+            setAssignments(initialAssignments)
+            if (initialAssignments.length > 0) {
+              setActiveOrder(initialAssignments[0])
+            }
+          })
+          .catch(err => console.error('Error fetching initial orders:', err))
       })
-      .catch(err => console.error('Error fetching initial orders:', err))
+      .catch(err => console.error('Auth check failed:', err))
   }, [])
 
   useEffect(() => {
@@ -78,6 +127,7 @@ function App() {
 
           stompClient.subscribe('/topic/assignments', (message) => {
             const assignment = JSON.parse(message.body);
+            assignment.status = "MATCHED";
             setAssignments(prev => {
               const exists = prev.some(a => a.orderId === assignment.orderId);
               if (exists) return prev;
@@ -177,6 +227,14 @@ function App() {
               </div>
             </div>
           </div>
+          
+          <button 
+            className="create-order-btn" 
+            onClick={createSampleOrder}
+            disabled={loading}
+          >
+            {loading ? 'Creating...' : 'Create Sample Order'}
+          </button>
         </motion.div>
 
         <motion.div 
@@ -236,6 +294,22 @@ function App() {
                 {activeOrder.status}
               </div>
             </div>
+
+            {couriers[activeOrder.courierId] ? (
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="eta-display"
+              >
+                <div className="eta-value">
+                  {couriers[activeOrder.courierId].eta != null 
+                    ? <>{couriers[activeOrder.courierId].eta} <span className="unit">dk</span></>
+                    : <span style={{fontSize: '14px', color: '#9ca3af'}}>Konum bekleniyor...</span>
+                  }
+                </div>
+                <div className="eta-label">Tahmini Varış Süresi</div>
+              </motion.div>
+            ) : null}
 
             <div className="progress-container">
               <div className="progress-line">

@@ -13,6 +13,8 @@ public class OrderRequestDTO {
     private String customerId;
     private double latitude;
     private double longitude;
+    private double deliveryLatitude;
+    private double deliveryLongitude;
     private String pickupAddress;
     private String deliveryAddress;
 }

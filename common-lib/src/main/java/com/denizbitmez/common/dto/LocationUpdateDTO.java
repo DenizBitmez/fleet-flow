@@ -14,4 +14,5 @@ public class LocationUpdateDTO {
     private double latitude;
     private double longitude;
     private long timestamp;
+    private Double eta; // in minutes
 }

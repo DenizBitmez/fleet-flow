@@ -40,6 +40,8 @@ public class MatchingService {
                 .customerId(orderRequest.getCustomerId())
                 .pickupLatitude(orderRequest.getLatitude())
                 .pickupLongitude(orderRequest.getLongitude())
+                .deliveryLatitude(orderRequest.getDeliveryLatitude())
+                .deliveryLongitude(orderRequest.getDeliveryLongitude())
                 .status("CREATED")
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -62,6 +64,11 @@ public class MatchingService {
                     .customerId(order.getCustomerId())
                     .timestamp(System.currentTimeMillis())
                     .build();
+
+            // Store active assignment in Redis for TrackingService to calculate ETA
+            // Key: assignment:courier:{courierId}, Value: destLat,destLon
+            String destValue = order.getDeliveryLatitude() + "," + order.getDeliveryLongitude();
+            redisTemplate.opsForValue().set("assignment:courier:" + courierId, destValue);
 
             rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, RabbitMQConfig.ROUTING_KEY, event);
             log.info("Order {} matched with courier {}", order.getId(), courierId);

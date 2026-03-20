@@ -30,6 +30,9 @@ public class Order {
     private double pickupLatitude;
     private double pickupLongitude;
     
+    private double deliveryLatitude;
+    private double deliveryLongitude;
+    
     private LocalDateTime createdAt;
     private LocalDateTime matchedAt;
 }
