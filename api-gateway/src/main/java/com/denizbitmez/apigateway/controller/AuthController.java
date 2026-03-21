@@ -18,12 +18,22 @@ public class AuthController {
     private final JwtUtils jwtUtils;
 
     @GetMapping("/login")
-    public Mono<Map<String, String>> login(@RequestParam(defaultValue = "demo-user") String username) {
+    public org.springframework.http.ResponseEntity<Mono<Map<String, String>>> login(@RequestParam(defaultValue = "demo-user") String username) {
         String token = jwtUtils.generateToken(username);
-        return Mono.just(Map.of(
-            "token", token,
-            "type", "Bearer",
-            "info", "Use this token in Authorization header: Bearer " + token
-        ));
+        
+        org.springframework.http.ResponseCookie cookie = org.springframework.http.ResponseCookie.from("JWT", token)
+                .httpOnly(true)
+                .secure(false) // Set true if using HTTPS
+                .path("/")
+                .maxAge(3600) // 1 hour
+                .sameSite("Strict")
+                .build();
+
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(Mono.just(Map.of(
+                        "message", "Login successful",
+                        "info", "JWT stored securely in HttpOnly cookie."
+                )));
     }
 }

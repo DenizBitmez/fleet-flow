@@ -31,17 +31,25 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
 
-            // Skip auth for login or public paths if needed (though we'll use yml configuration for routes)
-            if (!request.getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
-                return onError(exchange, "Missing Authorization Header", HttpStatus.UNAUTHORIZED);
+            String token = null;
+            
+            // 1. Try to read from HttpOnly Cookie
+            org.springframework.http.HttpCookie cookie = request.getCookies().getFirst("JWT");
+            if (cookie != null) {
+                token = cookie.getValue();
+            } 
+            // 2. Fallback to Authorization header (for Postman/cURL tests)
+            else if (request.getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
+                String authHeader = request.getHeaders().get(HttpHeaders.AUTHORIZATION).get(0);
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    token = authHeader.substring(7);
+                }
             }
 
-            String authHeader = request.getHeaders().get(HttpHeaders.AUTHORIZATION).get(0);
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return onError(exchange, "Invalid Authorization Header", HttpStatus.UNAUTHORIZED);
+            if (token == null) {
+                return onError(exchange, "Missing Authentication Token (Cookie or Header)", HttpStatus.UNAUTHORIZED);
             }
 
-            String token = authHeader.substring(7);
             if (!jwtUtils.validateToken(token)) {
                 return onError(exchange, "Unauthorized access", HttpStatus.UNAUTHORIZED);
             }

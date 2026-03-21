@@ -21,13 +21,8 @@ function App() {
   const [connected, setConnected] = useState(false)
   const [activeOrder, setActiveOrder] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [token, setToken] = useState(null)
 
   const createSampleOrder = () => {
-    if (!token) {
-      console.error("No token available yet")
-      return
-    }
     setLoading(true)
     const sampleOrder = {
       customerId: "user-" + Math.floor(Math.random() * 1000),
@@ -42,8 +37,7 @@ function App() {
     fetch('/matching/order', {
       method: 'POST',
       headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(sampleOrder)
     })
@@ -59,17 +53,12 @@ function App() {
   }
 
   useEffect(() => {
-    // 1. First authenticate with API Gateway to get JWT token
+    // 1. First authenticate with API Gateway to receive HttpOnly Cookie
     fetch('/auth/login?username=ui-dashboard')
       .then(res => res.json())
-      .then(authData => {
-        const jwt = authData.token
-        setToken(jwt)
-
-        // 2. Fetch initial locations securely
-        fetch('/courier/locations', {
-          headers: { 'Authorization': `Bearer ${jwt}` }
-        })
+      .then(() => {
+        // 2. Fetch initial locations securely (Cookie is attached automatically)
+        fetch('/courier/locations')
           .then(res => res.json())
           .then(data => {
             const initialCouriers = {}
@@ -80,10 +69,8 @@ function App() {
           })
           .catch(err => console.error('Error fetching initial locations:', err))
 
-        // 3. Fetch initial assignments securely
-        fetch('/matching/orders', {
-          headers: { 'Authorization': `Bearer ${jwt}` }
-        })
+        // 3. Fetch initial assignments securely (Cookie is attached automatically)
+        fetch('/matching/orders')
           .then(res => res.json())
           .then(data => {
             const initialAssignments = data.map(order => ({
@@ -159,7 +146,7 @@ function App() {
 
     return () => {
       isMounted = false;
-      if (stompClient) {
+      if (stompClient && stompClient.connected) {
         try {
           stompClient.disconnect();
         } catch (e) {

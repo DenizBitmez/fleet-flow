@@ -12,12 +12,24 @@ spring:
           predicates:
             - Path=/courier/**
           filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@ipKeyResolver}"
             - AuthenticationFilter
         - id: matching-service
           uri: lb://matching-service
           predicates:
             - Path=/matching/**
           filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@ipKeyResolver}"
             - AuthenticationFilter
 
 eureka:
