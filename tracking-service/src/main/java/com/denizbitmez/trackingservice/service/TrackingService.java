@@ -32,11 +32,20 @@ public class TrackingService {
                         destLat, destLon
                 );
 
-                // Assuming average speed of 20 km/h for a city bike/motorcycle
+                // Dynamic speed based on Weather
                 double speedKmH = 20.0;
+                String weather = "CLEAR";
+                if (coords.length > 2) {
+                    weather = coords[2];
+                    if ("RAIN".equals(weather)) speedKmH = 15.0;
+                    else if ("SNOW".equals(weather)) speedKmH = 10.0;
+                    else if ("STORM".equals(weather)) speedKmH = 5.0;
+                }
+                
                 double etaMinutes = (distanceKm / speedKmH) * 60.0;
                 
                 locationUpdate.setEta(Math.round(etaMinutes * 10.0) / 10.0); // Round to 1 decimal
+                locationUpdate.setWeather(weather);
             } catch (Exception e) {
                 log.error("Error calculating ETA: {}", e.getMessage());
             }
@@ -76,12 +85,21 @@ public class TrackingService {
                     double destLat = Double.parseDouble(coords[0]);
                     double destLon = Double.parseDouble(coords[1]);
 
+                    String weather = "CLEAR";
+                    double speedKmH = 20.0;
+                    if (coords.length > 2) {
+                        weather = coords[2];
+                        if ("RAIN".equals(weather)) speedKmH = 15.0;
+                        else if ("SNOW".equals(weather)) speedKmH = 10.0;
+                        else if ("STORM".equals(weather)) speedKmH = 5.0;
+                    }
+
                     double distanceKm = calculateDistance(
                             courierLocation.getY(), courierLocation.getX(),
                             destLat, destLon
                     );
 
-                    double etaMinutes = (distanceKm / 20.0) * 60.0;
+                    double etaMinutes = (distanceKm / speedKmH) * 60.0;
                     
                     LocationUpdateDTO initialUpdate = LocationUpdateDTO.builder()
                             .courierId(event.getCourierId())
@@ -89,6 +107,7 @@ public class TrackingService {
                             .longitude(courierLocation.getX())
                             .timestamp(System.currentTimeMillis())
                             .eta(Math.round(etaMinutes * 10.0) / 10.0)
+                            .weather(weather)
                             .build();
                             
                     messagingTemplate.convertAndSend("/topic/locations", initialUpdate);

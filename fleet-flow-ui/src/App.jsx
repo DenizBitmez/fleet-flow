@@ -21,6 +21,7 @@ function App() {
   const [connected, setConnected] = useState(false)
   const [activeOrder, setActiveOrder] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [lastSentOrder, setLastSentOrder] = useState(null)
 
   const createSampleOrder = () => {
     setLoading(true)
@@ -33,6 +34,8 @@ function App() {
       pickupAddress: "Beşiktaş, İstanbul",
       deliveryAddress: "Kadıköy, İstanbul"
     }
+    
+    setLastSentOrder(sampleOrder)
 
     fetch('/matching/order', {
       method: 'POST',
@@ -48,6 +51,39 @@ function App() {
     })
     .catch(err => {
       console.error('Error creating order:', err)
+      setLoading(false)
+    })
+  }
+
+  const createPooledOrder = () => {
+    if (!lastSentOrder) {
+      alert("Please create a 'Sample Order' first to use as a baseline.");
+      return;
+    }
+    setLoading(true)
+    
+    // Simulate a neighbor making an order from the same restaurant to a nearby home
+    const pooledOrder = {
+      ...lastSentOrder,
+      customerId: "neighbor-" + Math.floor(Math.random() * 1000),
+      deliveryLatitude: lastSentOrder.deliveryLatitude + 0.005, // 500m offset
+      deliveryLongitude: lastSentOrder.deliveryLongitude + 0.005
+    }
+
+    fetch('/matching/order', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(pooledOrder)
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Pooled Order created:', data)
+      setLoading(false)
+    })
+    .catch(err => {
+      console.error('Error creating pooled order:', err)
       setLoading(false)
     })
   }
@@ -160,6 +196,22 @@ function App() {
 
   const courierList = Object.values(couriers)
 
+  const getWeatherDisplay = (weatherStr) => {
+    switch(weatherStr) {
+      case 'RAIN': return { icon: '🌧️', text: 'Rain', color: '#60a5fa', warning: 'Possible delay' };
+      case 'SNOW': return { icon: '❄️', text: 'Snow', color: '#a78bfa', warning: 'Possible delay' };
+      case 'STORM': return { icon: '⛈️', text: 'Storm', color: '#f87171', warning: 'High delay risk!' };
+      case 'CLEAR':
+      default: return { icon: '☀️', text: 'Clear', color: '#fbbf24', warning: null };
+    }
+  }
+
+  const getArrivalTime = (etaMinutes) => {
+    if (!etaMinutes) return '';
+    const arrivalTime = new Date(Date.now() + Math.round(etaMinutes * 60000));
+    return arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
   return (
     <div className="app-container">
       {/* Map Background */}
@@ -215,13 +267,23 @@ function App() {
             </div>
           </div>
           
-          <button 
-            className="create-order-btn" 
-            onClick={createSampleOrder}
-            disabled={loading}
-          >
-            {loading ? 'Creating...' : 'Create Sample Order'}
-          </button>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px'}}>
+            <button 
+              className="create-order-btn" 
+              onClick={createSampleOrder}
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : '1. Create Sample Order'}
+            </button>
+            <button 
+              className="create-order-btn" 
+              onClick={createPooledOrder}
+              disabled={loading || !lastSentOrder}
+              style={{ backgroundColor: !lastSentOrder ? '#374151' : '#10b981', color: 'white' }}
+            >
+              {loading ? 'Creating...' : '2. Create Pooled Order'}
+            </button>
+          </div>
         </motion.div>
 
         <motion.div 
@@ -287,14 +349,26 @@ function App() {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 className="eta-display"
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
               >
-                <div className="eta-value">
-                  {couriers[activeOrder.courierId].eta != null 
-                    ? <>{couriers[activeOrder.courierId].eta} <span className="unit">dk</span></>
-                    : <span style={{fontSize: '14px', color: '#9ca3af'}}>Konum bekleniyor...</span>
-                  }
+                <div>
+                  <div className="eta-value">
+                    {couriers[activeOrder.courierId].eta != null 
+                      ? <>{couriers[activeOrder.courierId].eta} <span className="unit">min</span> <span style={{ fontSize: '15px', color: '#9ca3af', marginLeft: '6px', fontWeight: '400' }}>({getArrivalTime(couriers[activeOrder.courierId].eta)})</span></>
+                      : <span style={{fontSize: '14px', color: '#9ca3af'}}>Waiting for location...</span>
+                    }
+                  </div>
+                  <div className="eta-label">Estimated Arrival</div>
                 </div>
-                <div className="eta-label">Tahmini Varış Süresi</div>
+
+                {couriers[activeOrder.courierId].weather && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', padding: '6px 14px', borderRadius: '16px', backgroundColor: 'rgba(255,255,255,0.05)', fontSize: '14px', fontWeight: '500', color: getWeatherDisplay(couriers[activeOrder.courierId].weather).color, border: `1px solid ${getWeatherDisplay(couriers[activeOrder.courierId].weather).color}40`, backdropFilter: 'blur(4px)' }}>
+                    <div>{getWeatherDisplay(couriers[activeOrder.courierId].weather).icon} {getWeatherDisplay(couriers[activeOrder.courierId].weather).text}</div>
+                    {getWeatherDisplay(couriers[activeOrder.courierId].weather).warning && (
+                       <span style={{fontSize:'12px', color:'#f87171', marginTop:'2px'}}>{getWeatherDisplay(couriers[activeOrder.courierId].weather).warning}</span>
+                    )}
+                  </div>
+                )}
               </motion.div>
             ) : null}
 

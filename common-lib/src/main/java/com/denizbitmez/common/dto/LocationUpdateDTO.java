@@ -15,4 +15,5 @@ public class LocationUpdateDTO {
     private double longitude;
     private long timestamp;
     private Double eta; // in minutes
+    private String weather; // CLEAR, RAIN, SNOW, STORM
 }
